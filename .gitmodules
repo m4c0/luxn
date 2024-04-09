@@ -1,0 +1,6 @@
+[submodule "uxn"]
+	path = uxn
+	url = https://git.sr.ht/~rabbits/uxn
+[submodule "uxn-games"]
+	path = uxn-games
+	url = https://git.sr.ht/~rabbits/uxn-games

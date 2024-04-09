@@ -1,5 +1,2 @@
 #pragma leco tool
-
-extern "C" {
-#include "uxn/src/uxnasm.c"
-}
+#pragma leco add_impl "uxn/src/uxnasm.c"

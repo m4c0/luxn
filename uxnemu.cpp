@@ -1,4 +1,4 @@
-#pragma leco tool
+#pragma leco app
 #pragma leco add_impl "uxn/src/uxn.c"
 #pragma leco add_impl "uxn/src/devices/system.c"
 #pragma leco add_impl "uxn/src/devices/console.c"
@@ -35,6 +35,8 @@ class thread : public voo::casein_thread {
     auto smp = vee::create_sampler(vee::nearest_sampler);
     auto dset = ps.allocate_descriptor_set(a.iv(), *smp);
 
+    { voo::mapmem m{a.host_memory()}; }
+
     quack::upc rpc{
         .grid_pos = {0.5f, 0.5f},
         .grid_size = {1.0f, 1.0f},
@@ -45,6 +47,9 @@ class thread : public voo::casein_thread {
       extent_loop(dq.queue(), sw, [&] {
         auto upc = quack::adjust_aspect(rpc, sw.aspect());
         sw.queue_one_time_submit(dq.queue(), [&](auto pcb) {
+          a.setup_copy(*pcb);
+          ib.setup_copy(*pcb);
+
           auto scb = sw.cmd_render_pass(pcb);
           vee::cmd_set_viewport(*scb, sw.extent());
           vee::cmd_set_scissor(*scb, sw.extent());

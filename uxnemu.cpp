@@ -9,6 +9,10 @@
 #pragma leco add_impl "uxn/src/devices/screen.c"
 #pragma leco add_impl "uxn/src/devices/audio.c"
 
+extern "C" {
+#include "uxn/src/uxn.h"
+}
+
 import casein;
 import quack;
 import vee;
@@ -53,6 +57,10 @@ class thread : public voo::casein_thread {
     }
   }
 };
+
+extern "C" Uint8 emu_dei(Uxn *u, Uint8 addr) { return 0; }
+extern "C" void emu_deo(Uxn *u, Uint8 addr, Uint8 value) {}
+extern "C" int emu_resize(int width, int height) { return 0; }
 
 extern "C" void casein_handle(const casein::event &e) {
   static thread t{};

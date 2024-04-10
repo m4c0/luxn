@@ -103,12 +103,17 @@ class thread : public voo::casein_thread {
         e.eval();
 
         if (emu_resized) {
-          emu_resized = false;
-          ib.map_uvs([](auto *uvs) {
-            float u = static_cast<float>(uxn_screen.width) / 1024.0;
-            float v = static_cast<float>(uxn_screen.height) / 1024.0;
+          float sw = uxn_screen.width;
+          float sh = uxn_screen.height;
+          rpc.grid_size = {sw, sh};
+          rpc.grid_pos = rpc.grid_size / 2.0;
+          ib.map_positions([sw, sh](auto *ps) { ps[0] = {{0, 0}, {sw, sh}}; });
+          ib.map_uvs([sw, sh](auto *uvs) {
+            float u = sw / 1024.0;
+            float v = sh / 1024.0;
             uvs[0] = {{0, 0}, {u, v}};
           });
+          emu_resized = false;
         }
 
         {

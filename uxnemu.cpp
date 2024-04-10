@@ -33,6 +33,8 @@ import sires;
 import vee;
 import voo;
 
+static volatile bool emu_resized = true;
+
 class emu {
   Uint8 m_dev[0x100]{};
   Uxn m_u{};
@@ -100,11 +102,26 @@ class thread : public voo::casein_thread {
       extent_loop(dq.queue(), sw, [&] {
         e.eval();
 
+        if (emu_resized) {
+          emu_resized = false;
+          ib.map_uvs([](auto *uvs) {
+            float u = static_cast<float>(uxn_screen.width) / 1024.0;
+            float v = static_cast<float>(uxn_screen.height) / 1024.0;
+            uvs[0] = {{0, 0}, {u, v}};
+          });
+        }
+
         {
           auto w = uxn_screen.width;
           auto h = uxn_screen.height;
           voo::mapmem m{a.host_memory()};
-          memcpy(*m, uxn_screen.pixels, w * h * 4);
+          auto mp = static_cast<Uint32 *>(*m);
+          auto sp = uxn_screen.pixels;
+          for (auto y = 0; y < h; y++) {
+            memcpy(mp, sp, w * 4);
+            sp += w;
+            mp += 1024;
+          }
         }
 
         auto upc = quack::adjust_aspect(rpc, sw.aspect());
@@ -175,6 +192,7 @@ extern "C" void emu_deo(Uxn *u, Uint8 addr, Uint8 value) {
 }
 extern "C" int emu_resize(int width, int height) {
   silog::log(silog::debug, "resize: %d %d", width, height);
+  emu_resized = true;
   return 0;
 }
 

@@ -84,6 +84,8 @@ public:
       y = uxn_screen.height;
     ::mouse_pos(&m_u, &m_u.dev[0x90], x, y);
   }
+  void mouse_down(int b) { ::mouse_down(&m_u, &m_u.dev[0x90], b + 1); }
+  void mouse_up(int b) { ::mouse_up(&m_u, &m_u.dev[0x90], b + 1); }
 };
 static emu g_e{};
 
@@ -166,6 +168,12 @@ class thread : public voo::casein_thread {
     // TODO: fix scale
     auto [x, y] = *e;
     g_e.mouse_pos(x, y);
+  }
+  void mouse_up(const casein::events::mouse_up &e) override {
+    g_e.mouse_up(*e);
+  }
+  void mouse_down(const casein::events::mouse_down &e) override {
+    g_e.mouse_down(*e);
   }
 };
 

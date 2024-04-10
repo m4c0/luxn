@@ -33,16 +33,12 @@ import voo;
 class emu {
   Uint8 m_dev[0x100]{};
   Uxn m_u{};
-  Uxn m_u_audio{};
   hai::array<Uint8> m_ram{0x10000 * RAM_PAGES};
 
 public:
   emu() {
     m_u.dev = m_dev;
     m_u.ram = m_ram.begin();
-
-    m_u_audio.dev = m_dev;
-    m_u_audio.ram = m_ram.begin();
 
     // TODO: "slurp" into RAM directly
     sires::slurp("boot.rom")
@@ -57,6 +53,11 @@ public:
         });
 
     screen_resize(WIDTH, HEIGHT);
+
+    if (!uxn_eval(&m_u, PAGE_PROGRAM)) {
+      silog::log(silog::error, "uxn_eval failed for main program");
+      throw 0;
+    }
   }
 };
 
@@ -107,9 +108,17 @@ class thread : public voo::casein_thread {
   }
 };
 
-extern "C" Uint8 emu_dei(Uxn *u, Uint8 addr) { return 0; }
-extern "C" void emu_deo(Uxn *u, Uint8 addr, Uint8 value) {}
-extern "C" int emu_resize(int width, int height) { return 0; }
+extern "C" Uint8 emu_dei(Uxn *u, Uint8 addr) {
+  silog::log(silog::debug, "DEI: %02x", addr);
+  return 0;
+}
+extern "C" void emu_deo(Uxn *u, Uint8 addr, Uint8 value) {
+  silog::log(silog::debug, "DEO: %02x %02x", addr, value);
+}
+extern "C" int emu_resize(int width, int height) {
+  silog::log(silog::debug, "resize: %d %d", width, height);
+  return 0;
+}
 
 extern "C" void casein_handle(const casein::event &e) {
   static thread t{};

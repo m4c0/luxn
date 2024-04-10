@@ -120,10 +120,14 @@ class thread : public voo::casein_thread {
           auto w = uxn_screen.width;
           auto h = uxn_screen.height;
           voo::mapmem m{a.host_memory()};
-          auto mp = static_cast<Uint32 *>(*m);
-          auto sp = uxn_screen.pixels;
+          auto mp = static_cast<quack::u8_rgba *>(*m);
+          auto sp = static_cast<quack::u8_rgba *>(
+              static_cast<void *>(uxn_screen.pixels));
           for (auto y = 0; y < h; y++) {
-            memcpy(mp, sp, w * 4);
+            for (auto x = 0; x < w; x++) {
+              auto [b, g, r, a] = sp[x];
+              mp[x] = {r, g, b, a};
+            }
             sp += w;
             mp += 1024;
           }

@@ -8,18 +8,62 @@
 #pragma leco add_impl "uxn/src/devices/controller.c"
 #pragma leco add_impl "uxn/src/devices/screen.c"
 #pragma leco add_impl "uxn/src/devices/audio.c"
+#pragma leco add_resource "uxn/boot.rom"
+
+#include <string.h>
 
 extern "C" {
 #include "uxn/src/uxn.h"
+
+#include "uxn/src/devices/screen.h"
+#include "uxn/src/devices/system.h"
 }
 
+#define WIDTH 64 * 8
+#define HEIGHT 40 * 8
+
 import casein;
+import hai;
 import quack;
+import silog;
+import sires;
 import vee;
 import voo;
 
+class emu {
+  Uint8 m_dev[0x100]{};
+  Uxn m_u{};
+  Uxn m_u_audio{};
+  hai::array<Uint8> m_ram{0x10000 * RAM_PAGES};
+
+public:
+  emu() {
+    m_u.dev = m_dev;
+    m_u.ram = m_ram.begin();
+
+    m_u_audio.dev = m_dev;
+    m_u_audio.ram = m_ram.begin();
+
+    // TODO: "slurp" into RAM directly
+    sires::slurp("boot.rom")
+        .map([this](auto &&buf) {
+          unsigned sz = m_ram.size() - PAGE_PROGRAM;
+          sz = sz < buf.size() ? sz : buf.size();
+          memcpy(&m_ram[PAGE_PROGRAM], buf.begin(), sz);
+        })
+        .take([](auto msg) {
+          silog::log(silog::error, "Failed to read [boot.rom]");
+          throw 0;
+        });
+
+    screen_resize(WIDTH, HEIGHT);
+  }
+};
+
 class thread : public voo::casein_thread {
   void run() override {
+    emu e{};
+
     voo::device_and_queue dq{"uxnemu", native_ptr()};
     quack::pipeline_stuff ps{dq, 1};
     quack::instance_batch ib{ps.create_batch(1)};

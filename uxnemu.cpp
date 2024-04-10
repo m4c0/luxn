@@ -18,6 +18,7 @@ extern "C" {
 #include "uxn/src/devices/console.h"
 #include "uxn/src/devices/datetime.h"
 #include "uxn/src/devices/file.h"
+#include "uxn/src/devices/mouse.h"
 #include "uxn/src/devices/screen.h"
 #include "uxn/src/devices/system.h"
 }
@@ -71,12 +72,23 @@ public:
     uxn_eval(&m_u, screen_vector);
     screen_redraw(&m_u);
   }
+
+  void mouse_pos(int x, int y) {
+    if (x < 0)
+      x = 0;
+    if (x > uxn_screen.width)
+      x = uxn_screen.width;
+    if (y < 0)
+      y = 0;
+    if (y > uxn_screen.height)
+      y = uxn_screen.height;
+    ::mouse_pos(&m_u, &m_u.dev[0x90], x, y);
+  }
 };
+static emu g_e{};
 
 class thread : public voo::casein_thread {
   void run() override {
-    emu e{};
-
     voo::device_and_queue dq{"uxnemu", native_ptr()};
     quack::pipeline_stuff ps{dq, 1};
     quack::instance_batch ib{ps.create_batch(1)};
@@ -100,7 +112,7 @@ class thread : public voo::casein_thread {
     while (!interrupted()) {
       voo::swapchain_and_stuff sw{dq};
       extent_loop(dq.queue(), sw, [&] {
-        e.eval();
+        g_e.eval();
 
         if (emu_resized) {
           float sw = uxn_screen.width;
@@ -148,6 +160,12 @@ class thread : public voo::casein_thread {
         });
       });
     }
+  }
+
+  void mouse_move(const casein::events::mouse_move &e) override {
+    // TODO: fix scale
+    auto [x, y] = *e;
+    g_e.mouse_pos(x, y);
   }
 };
 

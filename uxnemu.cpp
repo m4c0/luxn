@@ -62,6 +62,13 @@ public:
       throw 0;
     }
   }
+
+  void eval() {
+    Uint8 *vector_addr = &m_u.dev[0x20];
+    auto screen_vector = PEEK2(vector_addr);
+    uxn_eval(&m_u, screen_vector);
+    screen_redraw(&m_u);
+  }
 };
 
 class thread : public voo::casein_thread {
@@ -76,14 +83,12 @@ class thread : public voo::casein_thread {
       ps[0] = {{0, 0}, {1, 1}};
       cs[0] = {0, 0, 0, 1};
       us[0] = {{0, 0}, {1, 1}};
-      ms[1] = {1, 1, 1, 1};
+      ms[0] = {1, 1, 1, 1};
     });
 
-    voo::h2l_image a{dq.physical_device(), 32, 32};
+    voo::h2l_image a{dq.physical_device(), 1024, 1024};
     auto smp = vee::create_sampler(vee::nearest_sampler);
     auto dset = ps.allocate_descriptor_set(a.iv(), *smp);
-
-    { voo::mapmem m{a.host_memory()}; }
 
     quack::upc rpc{
         .grid_pos = {0.5f, 0.5f},
@@ -93,6 +98,15 @@ class thread : public voo::casein_thread {
     while (!interrupted()) {
       voo::swapchain_and_stuff sw{dq};
       extent_loop(dq.queue(), sw, [&] {
+        e.eval();
+
+        {
+          auto w = uxn_screen.width;
+          auto h = uxn_screen.height;
+          voo::mapmem m{a.host_memory()};
+          memcpy(*m, uxn_screen.pixels, w * h * 4);
+        }
+
         auto upc = quack::adjust_aspect(rpc, sw.aspect());
         sw.queue_one_time_submit(dq.queue(), [&](auto pcb) {
           a.setup_copy(*pcb);

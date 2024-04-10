@@ -15,6 +15,8 @@
 extern "C" {
 #include "uxn/src/uxn.h"
 
+#include "uxn/src/devices/console.h"
+#include "uxn/src/devices/datetime.h"
 #include "uxn/src/devices/screen.h"
 #include "uxn/src/devices/system.h"
 }
@@ -109,11 +111,60 @@ class thread : public voo::casein_thread {
 };
 
 extern "C" Uint8 emu_dei(Uxn *u, Uint8 addr) {
-  silog::log(silog::debug, "DEI: %02x", addr);
-  return 0;
+  Uint8 p = addr & 0x0f, d = addr & 0xf0;
+  switch (d) {
+  case 0x00:
+    return system_dei(u, addr);
+  case 0x20:
+    return screen_dei(u, addr);
+  case 0x30:
+    // return audio_dei(0, &u->dev[d], p);
+  case 0x40:
+    // return audio_dei(1, &u->dev[d], p);
+  case 0x50:
+    // return audio_dei(2, &u->dev[d], p);
+  case 0x60:
+    // return audio_dei(3, &u->dev[d], p);
+    return 0;
+  case 0xc0:
+    return datetime_dei(u, addr);
+  }
+  return u->dev[addr];
 }
 extern "C" void emu_deo(Uxn *u, Uint8 addr, Uint8 value) {
-  silog::log(silog::debug, "DEO: %02x %02x", addr, value);
+  Uint8 p = addr & 0x0f, d = addr & 0xf0;
+  u->dev[addr] = value;
+  switch (d) {
+  case 0x00:
+    system_deo(u, &u->dev[d], p);
+    if (p > 0x7 && p < 0xe)
+      screen_palette(&u->dev[0x8]);
+    break;
+  case 0x10:
+    console_deo(&u->dev[d], p);
+    break;
+  case 0x20:
+    screen_deo(u->ram, &u->dev[0x20], p);
+    break;
+  case 0x30:
+    // audio_deo(0, &u->dev[d], p, u);
+    break;
+  case 0x40:
+    // audio_deo(1, &u->dev[d], p, u);
+    break;
+  case 0x50:
+    // audio_deo(2, &u->dev[d], p, u);
+    break;
+  case 0x60:
+    // audio_deo(3, &u->dev[d], p, u);
+    break;
+  case 0xa0:
+    // file_deo(0, u->ram, &u->dev[d], p);
+    break;
+  case 0xb0:
+    // file_deo(1, u->ram, &u->dev[d], p);
+    break;
+  }
 }
 extern "C" int emu_resize(int width, int height) {
   silog::log(silog::debug, "resize: %d %d", width, height);

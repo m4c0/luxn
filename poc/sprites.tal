@@ -1,4 +1,15 @@
-%spr-x { #28 }
+|20 @screen
+      &vector $2 
+      &width  $2 
+      &height $2
+      &auto   $1 
+      &pad    $1
+      &x      $2
+      &y      $2 
+      &addr   $2
+      &pixel  $1
+      &sprite $1
+
 %set-palette {
   #0f7f #08 DEO2
   #0fd6 #0a DEO2
@@ -8,14 +19,25 @@
 |0100
   set-palette
 
-  #0010 #2a DEO2
-  ;sprite #2c DEO2
+  ;sprite .screen/addr DEO2
 
-  #0030 spr-x DEO2
-  #05 #2f DEO
+  .screen/height DEI2
+  #0010
+&y-loop
+  .screen/y DEO2k POP
 
-  #0040 spr-x DEO2
-  #05 #2f DEO
+  .screen/width DEI2
+  #0010
+&x-loop
+  .screen/x DEO2k POP
+  #05 .screen/sprite DEO
+  #0010 ADD2
+  GTH2k ,&x-loop JCN
+
+  POP2 POP2
+  #0010 ADD2
+  GTH2k ,&y-loop JCN
+  
 BRK
 
 @sprite ff 81 81 81 81 81 81 ff

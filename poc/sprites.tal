@@ -1,14 +1,21 @@
+%spr-x { #28 }
+%set-palette {
+  #0f7f #08 DEO2
+  #0fd6 #0a DEO2
+  #0fb2 #0c DEO2
+}
+
 |0100
-  #f07f #08 DEO2
-  #f0d6 #0a DEO2
-  #f0b2 #0c DEO2
+  set-palette
 
-  #81 #2e DEO
-
-  #0030 #28 DEO2
   #0010 #2a DEO2
   ;sprite #2c DEO2
-  #00 #2f DEO
+
+  #0030 spr-x DEO2
+  #05 #2f DEO
+
+  #0040 spr-x DEO2
+  #05 #2f DEO
 BRK
 
 @sprite ff 81 81 81 81 81 81 ff

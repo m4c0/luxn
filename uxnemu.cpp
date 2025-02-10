@@ -101,18 +101,20 @@ class thread : public vapp {
   }
 
   void run() override {
+    quack::instance inst {
+      .position = {0, 0},
+      .size = {1, 1},
+      .uv0 = {0, 0},
+      .uv1 = {1, 1},
+      .colour = {0, 0, 0, 1},
+      .multiplier = {1, 1, 1, 1},
+    };
+
     voo::device_and_queue dq{"uxnemu", casein::native_ptr};
     quack::pipeline_stuff ps{dq, 1};
-    quack::instance_batch ib{ps.create_batch(1)};
-    ib.map_all([](auto p) {
-      auto &[cs, ms, ps, us] = p;
-      ps[0] = {{0, 0}, {1, 1}};
-      cs[0] = {0, 0, 0, 1};
-      us[0] = {{0, 0}, {1, 1}};
-      ms[0] = {1, 1, 1, 1};
-    });
+    quack::buffer_updater ib{&dq, 1, [&](auto p) { *p = inst; }};
 
-    voo::h2l_image a{dq.physical_device(), 1024, 1024};
+    voo::h2l_image a{dq.physical_device(), 1024, 1024, VK_FORMAT_R8G8B8A8_SRGB};
     auto smp = vee::create_sampler(vee::nearest_sampler);
     auto dset = ps.allocate_descriptor_set(a.iv(), *smp);
 
@@ -131,22 +133,19 @@ class thread : public vapp {
           float sh = uxn_screen.height;
           rpc.grid_size = {sw, sh};
           rpc.grid_pos = rpc.grid_size / 2.0;
-          ib.map_positions([sw, sh](auto *ps) { ps[0] = {{0, 0}, {sw, sh}}; });
-          ib.map_uvs([sw, sh](auto *uvs) {
-            float u = sw / 1024.0;
-            float v = sh / 1024.0;
-            uvs[0] = {{0, 0}, {u, v}};
-          });
+          inst.size = { sw, sh };
+          inst.uv1 = { sw / 1024.0f, sh / 1024.0f };
+          ib.run_once();
           emu_resized = false;
         }
 
         {
+          struct rgba { char r; char g; char b; char a; };
           auto w = uxn_screen.width;
           auto h = uxn_screen.height;
           voo::mapmem m{a.host_memory()};
-          auto mp = static_cast<quack::u8_rgba *>(*m);
-          auto sp = static_cast<quack::u8_rgba *>(
-              static_cast<void *>(uxn_screen.pixels));
+          auto mp = static_cast<rgba *>(*m);
+          auto sp = static_cast<rgba *>(static_cast<void *>(uxn_screen.pixels));
           for (auto y = 0; y < h; y++) {
             for (auto x = 0; x < w; x++) {
               auto [b, g, r, a] = sp[x];
@@ -160,15 +159,16 @@ class thread : public vapp {
         auto upc = quack::adjust_aspect(rpc, sw.aspect());
         sw.queue_one_time_submit(dq.queue(), [&](auto pcb) {
           a.setup_copy(*pcb);
-          ib.setup_copy(*pcb);
 
-          auto scb = sw.cmd_render_pass(pcb);
-          vee::cmd_set_viewport(*scb, sw.extent());
-          vee::cmd_set_scissor(*scb, sw.extent());
-          ib.build_commands(*pcb);
-          ps.cmd_bind_descriptor_set(*scb, dset);
-          ps.cmd_push_vert_frag_constants(*scb, upc);
-          ps.run(*scb, 1);
+          auto scb = sw.cmd_render_pass({ *pcb });
+          quack::run(&ps, {
+            .sw = &sw,
+            .scb = *scb,
+            .pc = &upc,
+            .inst_buffer = ib.data().local_buffer(),
+            .atlas_dset = dset,
+            .count = 1,
+          });
         });
       });
     }
@@ -227,9 +227,4 @@ extern "C" int emu_resize(int width, int height) {
   silog::log(silog::debug, "resize: %d %d", width, height);
   emu_resized = true;
   return 0;
-}
-
-extern "C" void casein_handle(const casein::event &e) {
-  static thread t{};
-  t.handle(e);
 }

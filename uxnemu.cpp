@@ -31,6 +31,7 @@ import hai;
 import quack;
 import silog;
 import sires;
+import vapp;
 import vee;
 import voo;
 
@@ -89,9 +90,18 @@ public:
 };
 static emu g_e{};
 
-class thread : public voo::casein_thread {
+class thread : public vapp {
+  thread() {
+    using namespace casein;
+    handle(MOUSE_MOVE, [] { g_e.mouse_pos(casein::mouse_pos.x, casein::mouse_pos.y); });
+    handle(MOUSE_UP,   M_LEFT,  [] { g_e.mouse_up(0); });
+    handle(MOUSE_UP,   M_RIGHT, [] { g_e.mouse_up(1); });
+    handle(MOUSE_DOWN, M_LEFT,  [] { g_e.mouse_down(0); });
+    handle(MOUSE_DOWN, M_RIGHT, [] { g_e.mouse_down(1); });
+  }
+
   void run() override {
-    voo::device_and_queue dq{"uxnemu", native_ptr()};
+    voo::device_and_queue dq{"uxnemu", casein::native_ptr};
     quack::pipeline_stuff ps{dq, 1};
     quack::instance_batch ib{ps.create_batch(1)};
     ib.map_all([](auto p) {
@@ -162,18 +172,6 @@ class thread : public voo::casein_thread {
         });
       });
     }
-  }
-
-  void mouse_move(const casein::events::mouse_move &e) override {
-    // TODO: fix scale
-    auto [x, y] = *e;
-    g_e.mouse_pos(x, y);
-  }
-  void mouse_up(const casein::events::mouse_up &e) override {
-    g_e.mouse_up(*e);
-  }
-  void mouse_down(const casein::events::mouse_down &e) override {
-    g_e.mouse_down(*e);
   }
 };
 

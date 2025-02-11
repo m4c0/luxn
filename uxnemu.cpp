@@ -91,6 +91,7 @@ public:
 static emu g_e{};
 
 class thread : public vapp {
+public:
   thread() {
     using namespace casein;
     handle(MOUSE_MOVE, [] { g_e.mouse_pos(casein::mouse_pos.x, casein::mouse_pos.y); });
@@ -173,7 +174,7 @@ class thread : public vapp {
       });
     }
   }
-};
+} t;
 
 extern "C" Uint8 emu_dei(Uxn *u, Uint8 addr) {
   // Uint8 p = addr & 0x0f;

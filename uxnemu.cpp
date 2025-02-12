@@ -9,6 +9,8 @@
 #pragma leco add_impl "uxn/src/devices/screen.c"
 #pragma leco add_impl "uxn/src/devices/audio.c"
 #pragma leco add_resource "uxn/boot.rom"
+#pragma leco add_shader "uxnemu.vert"
+#pragma leco add_shader "uxnemu.frag"
 
 #include <string.h>
 
@@ -102,41 +104,23 @@ public:
   }
 
   void run() override {
-    quack::instance inst {
-      .position = {0, 0},
-      .size = {1, 1},
-      .uv0 = {0, 0},
-      .uv1 = {1, 1},
-      .colour = {0, 0, 0, 1},
-      .multiplier = {1, 1, 1, 1},
-    };
+    main_loop("poc-voo", [this](auto & dq, auto &sw) {
+      voo::single_dset ds { vee::dsl_fragment_sampler(), vee::combined_image_sampler() };
+      auto pl = vee::create_pipeline_layout({ ds.descriptor_set_layout() });
+      voo::one_quad_render oqr { "uxnemu", &dq, *pl };
 
-    voo::device_and_queue dq{"uxnemu", casein::native_ptr};
-    quack::pipeline_stuff ps{dq, 1};
-    quack::buffer_updater ib{&dq, 1, [&](auto p) { *p = inst; }};
+      voo::h2l_image a { dq.physical_device(), 1024, 1024, VK_FORMAT_R8G8B8A8_SRGB };
 
-    voo::h2l_image a{dq.physical_device(), 1024, 1024, VK_FORMAT_R8G8B8A8_SRGB};
-    auto smp = vee::create_sampler(vee::nearest_sampler);
-    auto dset = ps.allocate_descriptor_set(a.iv(), *smp);
+      auto smp = vee::create_sampler(vee::nearest_sampler);
+      vee::update_descriptor_set(ds.descriptor_set(), 0, a.iv(), *smp);
 
-    quack::upc rpc{
-        .grid_pos = {0.5f, 0.5f},
-        .grid_size = {1.0f, 1.0f},
-    };
 
-    while (!interrupted()) {
-      voo::swapchain_and_stuff sw{dq};
-      extent_loop(dq.queue(), sw, [&] {
+      ots_loop(dq, sw, [&](auto cb) {
         g_e.eval();
 
         if (emu_resized) {
-          float sw = uxn_screen.width;
-          float sh = uxn_screen.height;
-          rpc.grid_size = {sw, sh};
-          rpc.grid_pos = rpc.grid_size / 2.0;
-          inst.size = { sw, sh };
-          inst.uv1 = { sw / 1024.0f, sh / 1024.0f };
-          ib.run_once();
+          // float sw = uxn_screen.width;
+          // float sh = uxn_screen.height;
           emu_resized = false;
         }
 
@@ -156,23 +140,13 @@ public:
             mp += 1024;
           }
         }
+        a.setup_copy(cb);
 
-        auto upc = quack::adjust_aspect(rpc, sw.aspect());
-        sw.queue_one_time_submit(dq.queue(), [&](auto pcb) {
-          a.setup_copy(*pcb);
-
-          auto scb = sw.cmd_render_pass({ *pcb });
-          quack::run(&ps, {
-            .sw = &sw,
-            .scb = *scb,
-            .pc = &upc,
-            .inst_buffer = ib.data().local_buffer(),
-            .atlas_dset = dset,
-            .count = 1,
-          });
-        });
+        auto scb = sw.cmd_render_pass({ cb });
+        vee::cmd_bind_descriptor_set(cb, *pl, 0, ds.descriptor_set());
+        oqr.run(cb, sw.extent());
       });
-    }
+    });
   }
 } t;
 
